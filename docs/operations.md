@@ -23,6 +23,10 @@ python3 -m pytest tests/ -q
 
 Do not expose API keys in command output. CI should inject secrets into the job environment and revoke them through the provider's normal control plane.
 
+## Execution policy
+
+The Python compatibility executor runs allowlisted processes with `shell=False`. Shell operators such as pipes, redirects, and command chaining are rejected by default. Extend `execution.shell_allowlist` only with reviewed executables; enable `allow_shell_operators` only in a separately isolated environment with an explicit security review.
+
 ## Logging and data
 
 The Rust CLI emits only command results. The Python runtime writes task metadata, statuses, hashes, and tool results to the ledger path configured in YAML. Review ledger retention and archive permissions before using it with sensitive objectives or file content.

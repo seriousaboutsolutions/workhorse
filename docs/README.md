@@ -9,6 +9,7 @@ This directory contains the maintained product documentation. Start with the gui
 | Understand provider coverage and add a provider | [`providers.md`](providers.md) |
 | Understand the Rust/Python boundary | [`architecture.md`](architecture.md) |
 | Operate Workhorse in local and CI environments | [`operations.md`](operations.md) |
+| Track the path to production-grade runtime support | [`roadmap.md`](roadmap.md) |
 | Contribute, test, record demos, or release | [`contributing.md`](contributing.md) |
 
 The terminal demo is reproducible from [`demo.tape`](demo.tape). Its rendered artifact is [`demo.gif`](demo.gif). The tape uses a placeholder credential only to demonstrate local detection; it never contacts a provider.

@@ -22,6 +22,11 @@ class ExecutionConfig(BaseModel):
     timeout: float = 300.0
     retry_count: int = 1
     fail_fast: bool = True
+    shell_allowlist: list[str] = Field(default_factory=lambda: [
+        "cat", "date", "echo", "find", "git", "grep", "ls", "pwd", "pytest",
+        "whoami",
+    ])
+    allow_shell_operators: bool = False
 
 
 class LedgerConfig(BaseModel):

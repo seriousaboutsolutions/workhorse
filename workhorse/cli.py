@@ -26,11 +26,13 @@ logging.basicConfig(
 def main(ctx, config):
     """workhorse: Groq-powered task execution engine."""
     cfg = Config.load(config)
-    if not cfg.groq.api_key:
-        click.echo("Error: GROQ_API_KEY not set. Export it or add to config.", err=True)
-        sys.exit(1)
     ctx.ensure_object(dict)
     ctx.obj["config"] = cfg
+
+
+def require_groq(cfg):
+    if not cfg.groq.api_key:
+        raise click.ClickException("GROQ_API_KEY not set. Export it or add it to config.")
 
 
 @main.command()
@@ -39,6 +41,7 @@ def main(ctx, config):
 def plan(ctx, objective):
     """Generate a task plan without executing."""
     cfg = ctx.obj["config"]
+    require_groq(cfg)
     client = GroqClient(cfg.groq)
     planner = Planner(client)
     budget = TokenBudget(
@@ -73,7 +76,7 @@ def exec(ctx, plan_file):
         planning_reserve=cfg.groq.planning_reserve,
         delivery_reserve=cfg.groq.delivery_reserve,
     )
-    executor = Executor(client, ledger, budget)
+    executor = Executor(client, ledger, budget, execution=cfg.execution)
     results = executor.execute(task_plan)
 
     deliverer = Deliverer()
@@ -87,6 +90,7 @@ def exec(ctx, plan_file):
 def run(ctx, objective):
     """Plan, execute, and deliver in one shot."""
     cfg = ctx.obj["config"]
+    require_groq(cfg)
     client = GroqClient(cfg.groq)
     planner = Planner(client)
     ledger = Ledger(cfg.ledger)
@@ -97,7 +101,7 @@ def run(ctx, objective):
     )
 
     task_plan = planner.plan(objective, budget)
-    executor = Executor(client, ledger, budget)
+    executor = Executor(client, ledger, budget, execution=cfg.execution)
     results = executor.execute(task_plan)
 
     deliverer = Deliverer()

@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import os
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -22,6 +23,7 @@ class Ledger:
         self.archive_path = Path(self.config.archive_path).expanduser()
         self.archive_path.mkdir(parents=True, exist_ok=True)
         self._buffer: List[Dict] = []
+        self._lock = threading.Lock()
 
     def append(
         self,
@@ -43,8 +45,9 @@ class Ledger:
         entry_hash = self._hash(entry)
         entry["hash"] = entry_hash
 
-        self._buffer.append(entry)
-        self._flush()
+        with self._lock:
+            self._buffer.append(entry)
+            self._flush()
         return entry_hash
 
     def _hash(self, data: Dict) -> str:

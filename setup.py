@@ -1,8 +1,15 @@
+import re
+from pathlib import Path
+
 from setuptools import setup, find_packages
+
+
+cargo_manifest = Path(__file__).with_name("Cargo.toml").read_text()
+version = re.search(r'^version = "([^"]+)"', cargo_manifest, re.MULTILINE).group(1)
 
 setup(
     name="workhorse",
-    version="0.1.0",
+    version=version,
     packages=find_packages(),
     install_requires=[
         "groq>=0.9.0",
@@ -14,7 +21,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "workhorse=workhorse.cli:main",
+            "workhorse-legacy=workhorse.cli:main",
         ],
     },
     python_requires=">=3.9",

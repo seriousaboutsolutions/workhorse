@@ -50,14 +50,14 @@ export GROQ_API_KEY="replace-me"
 Run a task directly:
 
 ```bash
-workhorse run "inspect the repository and report failing tests"
+workhorse-legacy run "inspect the repository and report failing tests"
 ```
 
 Or separate planning from execution:
 
 ```bash
-workhorse plan "inspect the repository and report failing tests" > plan.json
-workhorse exec plan.json
+workhorse-legacy plan "inspect the repository and report failing tests" > plan.json
+workhorse-legacy exec plan.json
 ```
 
 The Python runtime stores its append-only ledger at `~/.workhorse/ledger.jsonl` by default. See the configuration example below.
@@ -81,6 +81,8 @@ execution:
   timeout: 300
   retry_count: 1
   fail_fast: true
+  shell_allowlist: ["cat", "date", "echo", "find", "git", "grep", "ls", "pwd", "pytest", "whoami"]
+  allow_shell_operators: false
 
 ledger:
   path: "~/.workhorse/ledger.jsonl"
@@ -88,4 +90,4 @@ ledger:
   compaction_threshold: 0.90
 ```
 
-The environment variable `GROQ_API_KEY` takes effect when `groq.api_key` is omitted. Keep credentials out of this file unless the file is protected by your secret-management policy.
+The environment variable `GROQ_API_KEY` takes effect when `groq.api_key` is omitted. Keep credentials out of this file unless the file is protected by your secret-management policy. Shell execution is restricted to the configured allowlist and does not invoke a shell by default.

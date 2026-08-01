@@ -29,6 +29,8 @@ The Rust and Python paths are separate entry points today. The Rust binary does 
 
 The planned migration boundary is a provider transport abstraction beneath the registry. A complete runtime provider should define authentication, endpoint construction, request serialization, response normalization, timeout behavior, and error classification before it is promoted from registry support to runtime support.
 
+The compatibility executor is intentionally policy-controlled: process steps use an allowlist and `shell=False`; shell operators are disabled by default. This is a baseline control, not a substitute for a container, sandbox, or OS-level isolation boundary.
+
 ## Python compatibility boundary
 
 The Python package is organized around:

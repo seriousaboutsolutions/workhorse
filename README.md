@@ -8,7 +8,8 @@
   <a href="docs/cli.md">CLI reference</a> ·
   <a href="docs/providers.md">Providers</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
-  <a href="docs/operations.md">Operations</a>
+  <a href="docs/operations.md">Operations</a> ·
+  <a href="docs/roadmap.md">Roadmap</a>
 </p>
 
 ![Workhorse provider discovery](docs/demo.gif)
@@ -61,7 +62,7 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install -e .
 export GROQ_API_KEY=...
-workhorse run "your task here"
+workhorse-legacy run "your task here"
 ```
 
 The Python configuration schema and migration notes are documented in [`docs/getting-started.md`](docs/getting-started.md).

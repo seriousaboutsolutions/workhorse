@@ -34,10 +34,10 @@ These commands are provided by the legacy Python package:
 
 | Command | Purpose |
 | --- | --- |
-| `workhorse plan OBJECTIVE` | Generate a JSON execution plan without running it |
-| `workhorse exec PLAN_FILE` | Execute a previously generated plan |
-| `workhorse run OBJECTIVE` | Plan, execute, and deliver in one command |
-| `workhorse status TASK_ID` | Read task state from the ledger |
-| `workhorse ledger-tail` | Print the most recent ledger entries |
+| `workhorse-legacy plan OBJECTIVE` | Generate a JSON execution plan without running it |
+| `workhorse-legacy exec PLAN_FILE` | Execute a previously generated plan |
+| `workhorse-legacy run OBJECTIVE` | Plan, execute, and deliver in one command |
+| `workhorse-legacy status TASK_ID` | Read task state from the ledger |
+| `workhorse-legacy ledger-tail` | Print the most recent ledger entries |
 
-Use `workhorse --config PATH` or `WORKHORSE_CONFIG` to select Python configuration. The Python CLI currently requires `GROQ_API_KEY` during startup.
+Use `workhorse-legacy --config PATH` or `WORKHORSE_CONFIG` to select Python configuration. Only `plan` and `run` require `GROQ_API_KEY`; ledger and status commands are local-only.

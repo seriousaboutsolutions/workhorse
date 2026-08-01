@@ -1,7 +1,8 @@
 """Groq client with batched tool calling and structured output."""
 import json
 import logging
-from typing import Any, Dict, List, Optional, Callable
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List, Optional
 from groq import Groq
 
 from .config import GroqConfig
@@ -56,11 +57,11 @@ class GroqClient:
         requests: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """Execute multiple chat completions in parallel."""
-        import asyncio
-        import aiohttp
-
-        # Fallback: sequential execution if async not available
-        return [self.chat(**req) for req in requests]
+        if not requests:
+            return []
+        with ThreadPoolExecutor(max_workers=min(8, len(requests))) as pool:
+            futures = [pool.submit(self.chat, **request) for request in requests]
+            return [future.result() for future in futures]
 
     def _parse_response(self, response) -> Dict[str, Any]:
         """Extract the minimal useful data from a Groq response."""

@@ -1,10 +1,15 @@
-"""Silent batched executor with parallel tool calls."""
-import asyncio
+"""Policy-controlled executor with dependency-aware retries."""
+import hashlib
 import logging
+import os
+import shlex
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .config import ExecutionConfig
 from .groq_client import GroqClient
 from .ledger import Ledger
 from .planner import Step, TaskPlan
@@ -34,7 +39,7 @@ class ExecutionResult:
 
 
 class Executor:
-    """Executes task plans silently with batching."""
+    """Execute task plans with bounded parallelism and an explicit shell policy."""
 
     TOOL_REGISTRY = {
         "shell": "execute_shell",
@@ -44,217 +49,229 @@ class Executor:
         "web_search": "execute_web_search",
         "web_fetch": "execute_web_fetch",
     }
-    # Map common command names to shell equivalents
     SHELL_ALIASES = {
-        "ls": "ls",
-        "cat": "cat",
-        "grep": "grep",
-        "find": "find",
-        "mkdir": "mkdir",
-        "rm": "rm",
-        "cp": "cp",
-        "mv": "mv",
-        "pwd": "pwd",
-        "whoami": "whoami",
-        "date": "date",
-        "git": "git",
-        "python": "python3",
-        "pip": "pip",
-        "npm": "npm",
-        "node": "node",
-        "make": "make",
-        "docker": "docker",
-        "kubectl": "kubectl",
-        "terraform": "terraform",
-        "ansible": "ansible",
-        "pytest": "pytest",
+        "ls": "ls", "cat": "cat", "grep": "grep", "find": "find", "mkdir": "mkdir",
+        "rm": "rm", "cp": "cp", "mv": "mv", "pwd": "pwd", "whoami": "whoami",
+        "date": "date", "git": "git", "python": "python3", "pip": "pip", "npm": "npm",
+        "node": "node", "make": "make", "docker": "docker", "kubectl": "kubectl",
+        "terraform": "terraform", "ansible": "ansible", "pytest": "pytest",
     }
+    SHELL_OPERATORS = {"|", "||", "&", "&&", ";", ">", ">>", "<", "<<"}
+    SHELL_OPERATOR_CHARS = set("|&;><")
 
-    def __init__(self, client: GroqClient, ledger: Ledger, budget: TokenBudget):
+    def __init__(
+        self,
+        client: GroqClient,
+        ledger: Ledger,
+        budget: TokenBudget,
+        execution: Optional[ExecutionConfig] = None,
+    ):
         self.client = client
         self.ledger = ledger
         self.budget = budget
+        self.execution = execution or ExecutionConfig()
 
     def execute(self, plan: TaskPlan) -> List[ExecutionResult]:
-        """Execute a plan with parallel batching."""
+        """Execute a plan in dependency-ready batches."""
         self.ledger.append("plan", task_id=plan.task_id, content=plan.to_dict())
         results: List[ExecutionResult] = []
         pending = {s.id: s for s in plan.steps}
         completed: Dict[str, ExecutionResult] = {}
 
         while pending:
-            ready = [s for s in pending.values() if not s.depends_on or all(d in completed for d in s.depends_on)]
+            ready = [
+                step for step in pending.values()
+                if not step.depends_on or all(dependency in completed for dependency in step.depends_on)
+            ]
             if not ready:
-                logger.error("Circular dependency detected in plan")
+                logger.error("Circular or unresolved dependency detected in plan")
+                for step in pending.values():
+                    completed[step.id] = ExecutionResult(step.id, "failed", error="Unresolved dependency graph", exit_code=1)
+                    results.append(completed[step.id])
                 break
 
-            # Execute ready steps in parallel
-            batch_results = self._execute_batch(ready, plan.task_id)
-            for step, result in zip(ready, batch_results):
-                del pending[step.id]
+            runnable: List[Step] = []
+            for step in ready:
+                failed_dependencies = [
+                    dependency for dependency in step.depends_on
+                    if completed[dependency].status != "success"
+                ]
+                if failed_dependencies:
+                    result = ExecutionResult(
+                        step.id,
+                        "failed",
+                        error=f"Aborted: dependency failed ({', '.join(failed_dependencies)})",
+                        exit_code=1,
+                    )
+                    completed[step.id] = result
+                    results.append(result)
+                else:
+                    runnable.append(step)
+
+            for step, result in zip(runnable, self._execute_batch(runnable, plan.task_id)):
                 completed[step.id] = result
                 results.append(result)
 
-                if result.status == "failed":
-                    # Abort all dependent steps
-                    for dep_step in list(pending.values()):
-                        if step.id in dep_step.depends_on:
-                            dep_result = ExecutionResult(
-                                step_id=dep_step.id,
-                                status="failed",
-                                error=f"Aborted: dependency step {step.id} failed",
-                                exit_code=1,
-                            )
-                            del pending[dep_step.id]
-                            completed[dep_step.id] = dep_result
-                            results.append(dep_result)
+            for step in ready:
+                pending.pop(step.id, None)
 
-                    if step.retries > 0:
-                        # Retry once
-                        logger.info(f"Retrying step {step.id}")
-                        retry_result = self._execute_step(step, plan.task_id)
-                        completed[step.id] = retry_result
-                        # Replace the failed result with the retry
-                        for i, r in enumerate(results):
-                            if r.step_id == step.id and r.error != f"Aborted: dependency step {step.id} failed":
-                                results[i] = retry_result
-                                break
-                        # If retry succeeded, we need to re-add aborted dependents... skip for simplicity
-                        # In production, this would be a more complex retry graph
+            failed_batch = [result for result in results[-len(ready):] if result.status == "failed"]
+            if failed_batch and self.execution.fail_fast and pending:
+                failure = failed_batch[0]
+                for step in list(pending.values()):
+                    result = ExecutionResult(
+                        step.id,
+                        "failed",
+                        error=f"Aborted: fail_fast after step {failure.step_id} failed",
+                        exit_code=1,
+                    )
+                    completed[step.id] = result
+                    results.append(result)
+                    pending.pop(step.id)
+                break
 
         return results
 
     def _execute_batch(self, steps: List[Step], task_id: str) -> List[ExecutionResult]:
-        """Execute a batch of steps."""
-        # Use asyncio for true parallelism if async tools available
-        # For now, sequential with minimal overhead
-        return [self._execute_step(s, task_id) for s in steps]
+        """Execute independent steps concurrently, preserving plan order."""
+        workers = max(1, min(self.execution.max_parallel, len(steps)))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(self._execute_with_retries, step, task_id) for step in steps]
+            return [future.result() for future in futures]
+
+    def _execute_with_retries(self, step: Step, task_id: str) -> ExecutionResult:
+        attempts = max(1, step.retries + 1, self.execution.retry_count + 1)
+        result = self._execute_step(step, task_id)
+        for attempt in range(1, attempts):
+            if result.status == "success":
+                break
+            logger.info("Retrying step %s (%s/%s)", step.id, attempt, attempts - 1)
+            result = self._execute_step(step, task_id)
+        return result
 
     def _execute_step(self, step: Step, task_id: str) -> ExecutionResult:
-        """Execute a single step."""
         handler = getattr(self, self.TOOL_REGISTRY.get(step.action, ""), None)
-        if not handler:
-            # Check if it's a shell alias
-            if step.action in self.SHELL_ALIASES:
-                command = self.SHELL_ALIASES[step.action]
-                if step.target:
-                    command += f" {step.target}"
-                if step.args:
-                    for key, val in step.args.items():
-                        command += f" {key} {val}" if not key.startswith("-") else f" {key} {val}"
-                handler = self.execute_shell
-                step.args = {"command": command.strip()}
-            else:
-                return ExecutionResult(
-                    step_id=step.id,
-                    status="failed",
-                    error=f"Unknown tool: {step.action}",
-                    exit_code=1,
-                )
+        if not handler and step.action in self.SHELL_ALIASES:
+            command = self.SHELL_ALIASES[step.action]
+            if step.target:
+                command += f" {shlex.quote(step.target)}"
+            for key, value in step.args.items():
+                command += f" {key} {shlex.quote(str(value))}"
+            handler = self.execute_shell
+            args = {"command": command}
+        elif handler:
+            args = step.args
+        else:
+            return ExecutionResult(step.id, "failed", error=f"Unknown tool: {step.action}", exit_code=1)
 
         start = time.time()
         try:
-            result = handler(step.args, task_id)
+            result = handler(args, task_id)
             elapsed = time.time() - start
             result.step_id = step.id
             self.ledger.append(
-                "tool_call",
-                task_id=task_id,
-                step_id=step.id,
-                action=step.action,
-                status=result.status,
-                output_hash=self._hash(result.output or ""),
-                elapsed=round(elapsed, 3),
+                "tool_call", task_id=task_id, step_id=step.id, action=step.action,
+                status=result.status, output_hash=self._hash(result.output or ""), elapsed=round(elapsed, 3),
             )
             return result
-        except Exception as e:
+        except Exception as error:
             elapsed = time.time() - start
             self.ledger.append(
-                "tool_call",
-                task_id=task_id,
-                step_id=step.id,
-                action=step.action,
-                status="failed",
-                error=str(e),
-                elapsed=round(elapsed, 3),
+                "tool_call", task_id=task_id, step_id=step.id, action=step.action,
+                status="failed", error=str(error), elapsed=round(elapsed, 3),
             )
-            return ExecutionResult(
-                step_id=step.id,
-                status="failed",
-                error=str(e),
-                exit_code=1,
-            )
+            return ExecutionResult(step.id, "failed", error=str(error), exit_code=1)
 
     def _hash(self, text: str) -> str:
-        import hashlib
         return hashlib.sha256(text.encode()).hexdigest()[:16]
 
     def execute_file_read(self, args: Dict, task_id: str) -> ExecutionResult:
-        """Read a file."""
-        from pathlib import Path
         path = Path(args.get("path", "")).expanduser()
         if not path.exists():
             return ExecutionResult("", "failed", error=f"File not found: {path}", exit_code=1)
-        content = path.read_text()
-        return ExecutionResult("", "success", output=content)
+        return ExecutionResult("", "success", output=path.read_text())
 
     def execute_file_write(self, args: Dict, task_id: str) -> ExecutionResult:
-        """Write a file."""
-        from pathlib import Path
         path = Path(args.get("path", "")).expanduser()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(args.get("content", ""))
         return ExecutionResult("", "success", output=f"Wrote {path}")
 
     def execute_file_edit(self, args: Dict, task_id: str) -> ExecutionResult:
-        """Edit a file by replacing a string."""
-        from pathlib import Path
         path = Path(args.get("path", "")).expanduser()
         if not path.exists():
             return ExecutionResult("", "failed", error=f"File not found: {path}", exit_code=1)
         content = path.read_text()
         old = args.get("old", "")
-        new = args.get("new", "")
         if old not in content:
             return ExecutionResult("", "failed", error=f"Old string not found in {path}", exit_code=1)
-        content = content.replace(old, new, args.get("count", 1))
-        path.write_text(content)
+        path.write_text(content.replace(old, args.get("new", ""), args.get("count", 1)))
         return ExecutionResult("", "success", output=f"Edited {path}")
 
+    def _command_args(self, command: str) -> tuple[Optional[List[str]], Optional[str]]:
+        try:
+            argv = shlex.split(command)
+        except ValueError as error:
+            return None, f"Invalid command syntax: {error}"
+        if not argv:
+            return None, "Command is empty"
+        if not self.execution.allow_shell_operators and any(
+            token in self.SHELL_OPERATORS or any(character in token for character in self.SHELL_OPERATOR_CHARS)
+            for token in argv
+        ):
+            return None, "Shell operators are disabled; use separate plan steps"
+        executable = os.path.basename(argv[0])
+        allowed = set(self.execution.shell_allowlist)
+        if executable == "exit":
+            return argv, None
+        if executable not in allowed:
+            return None, f"Command '{executable}' is not in the shell allowlist"
+        return argv, None
+
     def execute_shell(self, args: Dict, task_id: str) -> ExecutionResult:
-        """Execute a shell command."""
-        command = args.get("command", "")
-        timeout = args.get("timeout", 300)
+        """Execute an allowlisted process, or an explicit unsafe shell command."""
+        command = str(args.get("command", ""))
+        timeout = min(float(args.get("timeout", self.execution.timeout)), self.execution.timeout)
+        if self.execution.allow_shell_operators:
+            try:
+                result = subprocess.run(
+                    command, shell=True, capture_output=True, text=True, timeout=timeout,
+                    cwd=args.get("cwd"),
+                )
+                return ExecutionResult(
+                    "", "success" if result.returncode == 0 else "failed", output=result.stdout,
+                    error=result.stderr, exit_code=result.returncode,
+                )
+            except subprocess.TimeoutExpired:
+                return ExecutionResult("", "failed", error=f"Timeout after {timeout}s", exit_code=124)
+
+        argv, error = self._command_args(command)
+        if error:
+            return ExecutionResult("", "failed", error=error, exit_code=126)
+        if argv[0] == "exit":
+            code = int(argv[1]) if len(argv) > 1 and argv[1].isdigit() else 0
+            return ExecutionResult("", "failed" if code else "success", exit_code=code)
         try:
             result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
+                argv, shell=False, capture_output=True, text=True, timeout=timeout,
                 cwd=args.get("cwd"),
             )
             return ExecutionResult(
-                "",
-                "success" if result.returncode == 0 else "failed",
-                output=result.stdout,
-                error=result.stderr,
-                exit_code=result.returncode,
+                "", "success" if result.returncode == 0 else "failed", output=result.stdout,
+                error=result.stderr, exit_code=result.returncode,
             )
         except subprocess.TimeoutExpired:
             return ExecutionResult("", "failed", error=f"Timeout after {timeout}s", exit_code=124)
+        except OSError as error:
+            return ExecutionResult("", "failed", error=str(error), exit_code=127)
 
     def execute_web_search(self, args: Dict, task_id: str) -> ExecutionResult:
-        """Search the web. Placeholder for web search integration."""
         return ExecutionResult("", "failed", error="Web search not implemented", exit_code=1)
 
     def execute_web_fetch(self, args: Dict, task_id: str) -> ExecutionResult:
-        """Fetch a URL."""
         import urllib.request
-        url = args.get("url", "")
         try:
-            with urllib.request.urlopen(url, timeout=30) as response:
-                content = response.read().decode("utf-8", errors="replace")
-                return ExecutionResult("", "success", output=content)
-        except Exception as e:
-            return ExecutionResult("", "failed", error=str(e), exit_code=1)
+            with urllib.request.urlopen(args.get("url", ""), timeout=self.execution.timeout) as response:
+                return ExecutionResult("", "success", output=response.read().decode("utf-8", errors="replace"))
+        except Exception as error:
+            return ExecutionResult("", "failed", error=str(error), exit_code=1)
