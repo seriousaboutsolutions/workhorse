@@ -84,7 +84,7 @@ fn main() -> ExitCode {
     match env::args().nth(1).as_deref() {
         Some("providers") => { providers(); ExitCode::SUCCESS }
         Some("doctor") => doctor(),
-        Some("--version") | Some("-V") => { println!("workhorse {}", paint("0.2.0", "1;36", color_enabled())); ExitCode::SUCCESS }
+        Some("--version") | Some("-V") => { println!("workhorse {}", paint(env!("CARGO_PKG_VERSION"), "1;36", color_enabled())); ExitCode::SUCCESS }
         _ => { usage(); ExitCode::SUCCESS }
     }
 }

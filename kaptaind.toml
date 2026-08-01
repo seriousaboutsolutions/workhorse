@@ -33,7 +33,7 @@ execution = "trusted"
 
 [project.ai]
 model = "provider-neutral"
-api_key_variables = ["ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "XAI_API_KEY"]
+api_key_variables = ["ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "OLLAMA_HOST", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "XAI_API_KEY"]
 
 [project.budget]
 max_tokens_per_commit = 2000

@@ -2,45 +2,69 @@
   <img src="assets/workhorse-logo.svg" alt="Workhorse" width="420">
 </p>
 
-<p align="center">Provider-neutral task execution for dependable automation.</p>
+<p align="center">Provider discovery and task execution for dependable automation.</p>
 
-Workhorse is a provider-neutral task execution CLI. The Rust CLI keeps provider discovery and local diagnostics fast and predictable; the original Python package remains available while the execution engine is being migrated.
+<p align="center">
+  <a href="docs/cli.md">CLI reference</a> ·
+  <a href="docs/providers.md">Providers</a> ·
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/operations.md">Operations</a>
+</p>
 
 ![Workhorse provider discovery](docs/demo.gif)
 
-## Install and run
+Workhorse is a provider-neutral task execution project. Its Rust CLI provides fast, deterministic provider discovery and local diagnostics. The Python compatibility runtime continues to provide the original planning and execution workflow while the Rust migration progresses.
 
-Rust 1.70 or newer is required for the CLI:
+> **Current scope:** the Rust CLI does not make model requests yet. `providers` and `doctor` are local-only commands. The Python compatibility path currently uses Groq for planning and execution.
+
+## Start here
+
+```bash
+git clone git@github-seriousaboutsolutions:seriousaboutsolutions/workhorse.git
+cd workhorse
+cargo run -- providers
+```
+
+Install the Rust binary when you are ready to use it outside the checkout:
 
 ```bash
 cargo install --path .
-workhorse providers
+workhorse --version
 workhorse doctor
 ```
 
-`providers` prints every supported backend and its credential variable. `doctor` reports which backends are configured without making a network request.
+The complete command reference is in [`docs/cli.md`](docs/cli.md). The shortest path for existing Python users is in [`docs/getting-started.md`](docs/getting-started.md).
 
-## Supported providers
+## Provider registry
 
-| Provider | Environment variable | API style |
-| --- | --- | --- |
-| Anthropic | `ANTHROPIC_API_KEY` | Anthropic Messages |
-| Google Gemini | `GEMINI_API_KEY` | Gemini |
-| Groq | `GROQ_API_KEY` | OpenAI-compatible |
-| Mistral | `MISTRAL_API_KEY` | OpenAI-compatible |
-| Ollama | `OLLAMA_HOST` | OpenAI-compatible, local |
-| OpenAI | `OPENAI_API_KEY` | OpenAI-compatible |
-| OpenRouter | `OPENROUTER_API_KEY` | OpenAI-compatible |
-| xAI | `XAI_API_KEY` | OpenAI-compatible |
+The Rust registry currently describes these backends and their credential variables:
 
-Set one credential before running `doctor`, for example:
+| ID | Provider | Credential or host | Protocol metadata | Rust CLI |
+| --- | --- | --- | --- | --- |
+| `anthropic` | Anthropic | `ANTHROPIC_API_KEY` | Anthropic Messages | Discovery |
+| `gemini` | Google Gemini | `GEMINI_API_KEY` | Gemini | Discovery |
+| `groq` | Groq | `GROQ_API_KEY` | OpenAI-compatible | Discovery |
+| `mistral` | Mistral | `MISTRAL_API_KEY` | OpenAI-compatible | Discovery |
+| `ollama` | Ollama | `OLLAMA_HOST` | OpenAI-compatible, local | Discovery |
+| `openai` | OpenAI | `OPENAI_API_KEY` | OpenAI-compatible | Discovery |
+| `openrouter` | OpenRouter | `OPENROUTER_API_KEY` | OpenAI-compatible | Discovery |
+| `xai` | xAI | `XAI_API_KEY` | OpenAI-compatible | Discovery |
+
+See [`docs/providers.md`](docs/providers.md) for configuration, security, and the provider contribution contract.
+
+## Python compatibility
+
+The legacy planner and executor remain available for current workflows:
 
 ```bash
-export OPENAI_API_KEY=...
-workhorse doctor
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -e .
+export GROQ_API_KEY=...
+workhorse run "your task here"
 ```
 
-No credential is stored by Workhorse. Provider endpoints and protocol metadata live in the local registry in `src/main.rs`.
+The Python configuration schema and migration notes are documented in [`docs/getting-started.md`](docs/getting-started.md).
 
 ## Development
 
@@ -50,15 +74,8 @@ python3 -m pytest tests/ -v
 vhs docs/demo.tape
 ```
 
-The VHS tape regenerates the animated terminal demo at `docs/demo.gif`. Install [VHS](https://github.com/charmbracelet/vhs) if you want to regenerate it locally.
+See [`docs/contributing.md`](docs/contributing.md) for local prerequisites, quality gates, release conventions, and documentation standards. Kaptaind watches the Rust, Python, test, and documentation trees; its repository policy is defined in [`kaptaind.toml`](kaptaind.toml).
 
-## Python compatibility
+## License
 
-The existing Python task planner and executor can still be installed for compatibility:
-
-```bash
-pip install -e .
-workhorse run "your task here"
-```
-
-The Python path currently uses Groq; new provider integrations should target the Rust provider registry and protocol boundary.
+Workhorse is released under the MIT license.
