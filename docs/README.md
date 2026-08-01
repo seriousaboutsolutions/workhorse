@@ -11,7 +11,7 @@ This directory contains the maintained product documentation. Start with the gui
 | Operate Workhorse in local and CI environments | [`operations.md`](operations.md) |
 | Contribute, test, record demos, or release | [`contributing.md`](contributing.md) |
 
-The terminal demo is reproducible from [`demo.tape`](demo.tape). Its rendered artifact is [`demo.gif`](demo.gif).
+The terminal demo is reproducible from [`demo.tape`](demo.tape). Its rendered artifact is [`demo.gif`](demo.gif). The tape uses a placeholder credential only to demonstrate local detection; it never contacts a provider.
 
 ## Documentation principles
 

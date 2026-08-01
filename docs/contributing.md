@@ -8,6 +8,7 @@ Run the same checks used by Kaptaind:
 cargo test
 python3 -m pytest tests/ -v
 git diff --check
+cargo build
 ```
 
 For documentation or terminal-demo changes, also run:

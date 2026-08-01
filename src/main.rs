@@ -1,7 +1,7 @@
 //! Workhorse's Rust CLI.  The provider registry is deliberately local and
 //! deterministic so `providers` is useful without network access or secrets.
 
-use std::{env, fmt, io::{self, IsTerminal}, process::ExitCode};
+use std::{env, io::{self, IsTerminal}, process::ExitCode};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Provider {
@@ -22,12 +22,6 @@ const PROVIDERS: &[Provider] = &[
     Provider { id: "openrouter", name: "OpenRouter", env_key: "OPENROUTER_API_KEY", base_url: "https://openrouter.ai/api/v1", protocol: "openai-compatible" },
     Provider { id: "xai", name: "xAI", env_key: "XAI_API_KEY", base_url: "https://api.x.ai/v1", protocol: "openai-compatible" },
 ];
-
-impl fmt::Display for Provider {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:<12} {:<18} {:<24} {}", self.id, self.name, self.env_key, self.base_url)
-    }
-}
 
 fn color_enabled() -> bool {
     io::stdout().is_terminal() && env::var_os("NO_COLOR").is_none()
@@ -54,25 +48,35 @@ fn usage() {
 fn providers() {
     let color = color_enabled();
     println!("{}", paint("Supported providers", "1;36", color));
-    println!("{}", paint("────────────────────────────────────────────────────────────────────────────────────────", "90", color));
-    println!("{}", paint(format!("{:<12} {:<18} {:<24} {}", "ID", "PROVIDER", "API KEY / HOST", "BASE URL"), "1;37", color));
-    println!("{}", paint("────────────────────────────────────────────────────────────────────────────────────────", "90", color));
+    println!("{}", paint("Local registry · no network requests", "90", color));
+    println!("{}", paint("────────────────────────────────────────────────────────────────────────────────────────────────────────────", "90", color));
+    println!("{}", paint(format!("{:<12} {:<18} {:<24} {:<19} {}", "ID", "PROVIDER", "API KEY / HOST", "PROTOCOL", "BASE URL"), "1;37", color));
+    println!("{}", paint("────────────────────────────────────────────────────────────────────────────────────────────────────────────", "90", color));
     for provider in PROVIDERS {
-        let row = format!("{provider}");
-        println!("{}", paint(row, "37", color));
+        let protocol = if provider.protocol == "openai-compatible" { "OpenAI-compatible" } else { provider.protocol };
+        println!(
+            "{} {} {} {} {}",
+            paint(format!("{:<12}", provider.id), "1;36", color),
+            paint(format!("{:<18}", provider.name), "37", color),
+            paint(format!("{:<24}", provider.env_key), "33", color),
+            paint(format!("{:<19}", protocol), "35", color),
+            paint(provider.base_url, "90", color),
+        );
     }
-    println!("\n{} providers registered", paint(PROVIDERS.len().to_string(), "1;32", color));
+    println!("\n{}", paint(format!("{} providers registered · registry ready", PROVIDERS.len()), "1;32", color));
 }
 
 fn doctor() -> ExitCode {
     let color = color_enabled();
     let configured: Vec<_> = PROVIDERS.iter().filter(|p| env::var(p.env_key).is_ok()).collect();
     if configured.is_empty() {
-        eprintln!("{}", paint("No provider credentials found.", "1;31", color));
+        eprintln!("{}", paint("LOCAL DIAGNOSTICS · attention required", "1;31", color));
+        eprintln!("{}", paint("No provider credentials found.", "31", color));
         eprintln!("Set one of the API key variables listed by `workhorse providers`.");
         return ExitCode::from(1);
     }
-    println!("{}", paint("Configured providers", "1;36", color));
+    println!("{}", paint("LOCAL DIAGNOSTICS · ready", "1;36", color));
+    println!("{}", paint(format!("{}/{} provider variables detected", configured.len(), PROVIDERS.len()), "90", color));
     for provider in configured {
         println!("  {} {}", paint("●", "1;32", color), paint(format!("{} ({})", provider.id, provider.protocol), "32", color));
     }
