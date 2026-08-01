@@ -49,4 +49,4 @@ This path remains the compatibility surface for existing users and tests during 
 - Never print or persist secret values.
 - Preserve plain output for pipes and CI.
 - Keep ledger writes append-only during normal execution.
-- Make the Rust transport boundary explicit before adding provider-specific behavior.
+- Keep provider-specific behavior behind the Rust transport boundary.

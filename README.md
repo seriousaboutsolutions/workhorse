@@ -7,9 +7,11 @@
 <p align="center">
   <a href="docs/cli.md">CLI reference</a> ·
   <a href="docs/providers.md">Providers</a> ·
+  <a href="docs/transport.md">Transport</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="docs/operations.md">Operations</a> ·
-  <a href="docs/roadmap.md">Roadmap</a>
+  <a href="docs/roadmap.md">Roadmap</a> ·
+  <a href="docs/session-review-2026-08-01.md">Session review</a>
 </p>
 
 ![Workhorse provider discovery](docs/demo.gif)
@@ -44,14 +46,14 @@ The Rust registry currently describes these backends and their credential variab
 | --- | --- | --- | --- | --- |
 | `anthropic` | Anthropic | `ANTHROPIC_API_KEY` | Anthropic Messages | Discovery |
 | `gemini` | Google Gemini | `GEMINI_API_KEY` | Gemini | Discovery |
-| `groq` | Groq | `GROQ_API_KEY` | OpenAI-compatible | Discovery |
-| `mistral` | Mistral | `MISTRAL_API_KEY` | OpenAI-compatible | Discovery |
-| `ollama` | Ollama | `OLLAMA_HOST` | OpenAI-compatible, local | Discovery |
-| `openai` | OpenAI | `OPENAI_API_KEY` | OpenAI-compatible | Discovery |
-| `openrouter` | OpenRouter | `OPENROUTER_API_KEY` | OpenAI-compatible | Discovery |
-| `xai` | xAI | `XAI_API_KEY` | OpenAI-compatible | Discovery |
+| `groq` | Groq | `GROQ_API_KEY` | OpenAI-compatible | Registry + transport |
+| `mistral` | Mistral | `MISTRAL_API_KEY` | OpenAI-compatible | Registry + transport |
+| `ollama` | Ollama | `OLLAMA_HOST` | OpenAI-compatible, local | Registry + transport |
+| `openai` | OpenAI | `OPENAI_API_KEY` | OpenAI-compatible | Registry + transport |
+| `openrouter` | OpenRouter | `OPENROUTER_API_KEY` | OpenAI-compatible | Registry + transport |
+| `xai` | xAI | `XAI_API_KEY` | OpenAI-compatible | Registry + transport |
 
-See [`docs/providers.md`](docs/providers.md) for configuration, security, and the provider contribution contract.
+See [`docs/providers.md`](docs/providers.md) for configuration and support boundaries, and [`docs/transport.md`](docs/transport.md) for the Rust adapter contract. The Rust CLI remains discovery-only; transport use is currently a library boundary.
 
 ## Python compatibility
 

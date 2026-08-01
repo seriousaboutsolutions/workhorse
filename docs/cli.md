@@ -28,6 +28,8 @@ NO_COLOR=1 workhorse providers > providers.txt
 
 The Rust commands currently emit human-readable text rather than a versioned machine-readable format. Treat the output as presentation output; use the source registry or a future structured output mode for automation that requires a stable schema.
 
+The Rust transport library is not a CLI command. No Rust command currently sends a model request, even when provider credentials are configured.
+
 ## Python compatibility commands
 
 These commands are provided by the legacy Python package:

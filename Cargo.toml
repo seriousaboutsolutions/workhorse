@@ -1,6 +1,6 @@
 [package]
 name = "workhorse"
-version = "1.2.4"
+version = "1.2.8"
 edition = "2021"
 description = "Provider-neutral task execution engine"
 license = "MIT"

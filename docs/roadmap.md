@@ -137,7 +137,7 @@ Exit criteria:
 
 **Objective:** make the registry executable through a single normalized transport boundary and expose it through the application service.
 
-**Progress:** the typed contract and an OpenAI-compatible blocking adapter now exist in `src/transport.rs`. The CLI intentionally remains discovery-only until request policy, model selection, structured output, and application-level retries are wired.
+**Progress:** the typed contract and an OpenAI-compatible blocking adapter now exist in `src/transport.rs`. The adapter has bounded connect/request timeouts and typed status mapping. The CLI intentionally remains discovery-only until request policy, model selection, structured output, and application-level retries are wired.
 
 Recommended implementation order:
 

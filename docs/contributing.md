@@ -5,7 +5,7 @@
 Run the same checks used by Kaptaind:
 
 ```bash
-cargo test
+cargo test --offline
 python3 -m pytest tests/ -v
 git diff --check
 cargo build
@@ -23,6 +23,7 @@ VHS is optional for code-only changes. The generated `docs/demo.gif` should be r
 
 - Keep the Rust binary dependency-light; network and serialization dependencies must have a clear security or correctness benefit and be reviewed in the lockfile.
 - Add tests for new provider metadata and command behavior.
+- Add offline transport fixtures for request shape, normalized responses, status mapping, and secret redaction.
 - Keep output stable under `NO_COLOR=1`.
 - Document current behavior and label migration work as planned.
 - Never commit secrets, generated `.kaptaind/` state, `target/`, or local virtual environments.

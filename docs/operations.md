@@ -11,6 +11,8 @@ echo $?
 
 For a provider connectivity check, use that provider's approved CLI or API health mechanism. Do not add live requests to `doctor` without defining timeout, retry, redaction, and failure semantics first.
 
+The Rust transport adapter is a library boundary and is not exercised by `doctor`. For transport diagnostics, use an isolated fixture or an explicitly approved provider smoke test; never use production credentials in a default health check.
+
 ## CI
 
 Use non-interactive output in CI:
@@ -22,6 +24,8 @@ python3 -m pytest tests/ -q
 ```
 
 Do not expose API keys in command output. CI should inject secrets into the job environment and revoke them through the provider's normal control plane.
+
+Rust dependencies are locked in `Cargo.lock`. Review changes to HTTP, TLS, serialization, and transitive cryptography dependencies before release. Run `cargo test --offline` after dependency resolution to verify reproducibility from the lockfile.
 
 ## Execution policy
 
