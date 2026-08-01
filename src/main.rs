@@ -2,26 +2,10 @@
 //! deterministic so `providers` is useful without network access or secrets.
 
 use std::{env, io::{self, IsTerminal}, process::ExitCode};
+pub mod provider;
+pub mod transport;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct Provider {
-    id: &'static str,
-    name: &'static str,
-    env_key: &'static str,
-    base_url: &'static str,
-    protocol: &'static str,
-}
-
-const PROVIDERS: &[Provider] = &[
-    Provider { id: "anthropic", name: "Anthropic", env_key: "ANTHROPIC_API_KEY", base_url: "https://api.anthropic.com/v1", protocol: "anthropic" },
-    Provider { id: "gemini", name: "Google Gemini", env_key: "GEMINI_API_KEY", base_url: "https://generativelanguage.googleapis.com/v1beta", protocol: "gemini" },
-    Provider { id: "groq", name: "Groq", env_key: "GROQ_API_KEY", base_url: "https://api.groq.com/openai/v1", protocol: "openai-compatible" },
-    Provider { id: "mistral", name: "Mistral", env_key: "MISTRAL_API_KEY", base_url: "https://api.mistral.ai/v1", protocol: "openai-compatible" },
-    Provider { id: "ollama", name: "Ollama", env_key: "OLLAMA_HOST", base_url: "http://localhost:11434/v1", protocol: "openai-compatible" },
-    Provider { id: "openai", name: "OpenAI", env_key: "OPENAI_API_KEY", base_url: "https://api.openai.com/v1", protocol: "openai-compatible" },
-    Provider { id: "openrouter", name: "OpenRouter", env_key: "OPENROUTER_API_KEY", base_url: "https://openrouter.ai/api/v1", protocol: "openai-compatible" },
-    Provider { id: "xai", name: "xAI", env_key: "XAI_API_KEY", base_url: "https://api.x.ai/v1", protocol: "openai-compatible" },
-];
+use provider::PROVIDERS;
 
 fn color_enabled() -> bool {
     io::stdout().is_terminal() && env::var_os("NO_COLOR").is_none()
@@ -53,7 +37,7 @@ fn providers() {
     println!("{}", paint(format!("{:<12} {:<18} {:<24} {:<19} {}", "ID", "PROVIDER", "API KEY / HOST", "PROTOCOL", "BASE URL"), "1;37", color));
     println!("{}", paint("────────────────────────────────────────────────────────────────────────────────────────────────────────────", "90", color));
     for provider in PROVIDERS {
-        let protocol = if provider.protocol == "openai-compatible" { "OpenAI-compatible" } else { provider.protocol };
+        let protocol = if provider.protocol.label() == "openai-compatible" { "OpenAI-compatible" } else { provider.protocol.label() };
         println!(
             "{} {} {} {} {}",
             paint(format!("{:<12}", provider.id), "1;36", color),
@@ -78,7 +62,7 @@ fn doctor() -> ExitCode {
     println!("{}", paint("LOCAL DIAGNOSTICS · ready", "1;36", color));
     println!("{}", paint(format!("{}/{} provider variables detected", configured.len(), PROVIDERS.len()), "90", color));
     for provider in configured {
-        println!("  {} {}", paint("●", "1;32", color), paint(format!("{} ({})", provider.id, provider.protocol), "32", color));
+        println!("  {} {}", paint("●", "1;32", color), paint(format!("{} ({})", provider.id, provider.protocol.label()), "32", color));
     }
     println!("\n{}", paint("Credentials detected; no network requests made.", "90", color));
     ExitCode::SUCCESS
@@ -90,24 +74,5 @@ fn main() -> ExitCode {
         Some("doctor") => doctor(),
         Some("--version") | Some("-V") => { println!("workhorse {}", paint(env!("CARGO_PKG_VERSION"), "1;36", color_enabled())); ExitCode::SUCCESS }
         _ => { usage(); ExitCode::SUCCESS }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn provider_ids_are_unique() {
-        for (index, provider) in PROVIDERS.iter().enumerate() {
-            assert!(!PROVIDERS[index + 1..].iter().any(|other| other.id == provider.id));
-        }
-    }
-
-    #[test]
-    fn includes_openai_compatible_and_native_protocols() {
-        assert!(PROVIDERS.iter().any(|p| p.protocol == "openai-compatible"));
-        assert!(PROVIDERS.iter().any(|p| p.protocol == "anthropic"));
-        assert!(PROVIDERS.iter().any(|p| p.protocol == "gemini"));
     }
 }

@@ -7,18 +7,18 @@ Provider support is intentionally split into two stages:
 1. **Registry support:** the Rust CLI can list the provider, show its endpoint metadata, and detect its configured environment variable.
 2. **Runtime support:** a provider can be selected by an execution transport and used for model requests.
 
-All providers in the table below currently have registry support. The legacy Python execution runtime currently supports Groq only.
+All providers in the table below have registry support. OpenAI-compatible providers now share a Rust transport contract, but the Rust CLI does not yet expose a model-request command. The legacy Python execution runtime currently supports Groq only.
 
 | ID | Environment variable | Default endpoint | Request protocol |
 | --- | --- | --- | --- |
 | `anthropic` | `ANTHROPIC_API_KEY` | `https://api.anthropic.com/v1` | Anthropic Messages |
 | `gemini` | `GEMINI_API_KEY` | `https://generativelanguage.googleapis.com/v1beta` | Gemini |
-| `groq` | `GROQ_API_KEY` | `https://api.groq.com/openai/v1` | OpenAI-compatible |
-| `mistral` | `MISTRAL_API_KEY` | `https://api.mistral.ai/v1` | OpenAI-compatible |
-| `ollama` | `OLLAMA_HOST` | `http://localhost:11434/v1` | OpenAI-compatible |
-| `openai` | `OPENAI_API_KEY` | `https://api.openai.com/v1` | OpenAI-compatible |
-| `openrouter` | `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` | OpenAI-compatible |
-| `xai` | `XAI_API_KEY` | `https://api.x.ai/v1` | OpenAI-compatible |
+| `groq` | `GROQ_API_KEY` | `https://api.groq.com/openai/v1` | OpenAI-compatible, Rust transport |
+| `mistral` | `MISTRAL_API_KEY` | `https://api.mistral.ai/v1` | OpenAI-compatible, Rust transport |
+| `ollama` | `OLLAMA_HOST` | `http://localhost:11434/v1` | OpenAI-compatible, Rust transport |
+| `openai` | `OPENAI_API_KEY` | `https://api.openai.com/v1` | OpenAI-compatible, Rust transport |
+| `openrouter` | `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` | OpenAI-compatible, Rust transport |
+| `xai` | `XAI_API_KEY` | `https://api.x.ai/v1` | OpenAI-compatible, Rust transport |
 
 The source of truth is `PROVIDERS` in [`src/main.rs`](../src/main.rs). Keep this document and the README synchronized when the registry changes.
 

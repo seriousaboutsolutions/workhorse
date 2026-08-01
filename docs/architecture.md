@@ -25,9 +25,9 @@ The Rust and Python paths are separate entry points today. The Rust binary does 
 
 ## Rust boundary
 
-`src/main.rs` owns the provider metadata and the local CLI presentation. It deliberately has no dependencies and makes no network calls. This keeps discovery usable in restricted build, CI, and incident environments.
+`src/provider.rs` owns typed provider metadata and protocol classification. `src/transport.rs` defines the provider-neutral completion contract and the first OpenAI-compatible adapter. `src/main.rs` owns local CLI presentation; the current CLI remains discovery-only and does not invoke the transport. Transport errors are typed so authentication, rate limits, timeouts, network failures, and malformed responses can receive distinct retry and telemetry treatment.
 
-The planned migration boundary is a provider transport abstraction beneath the registry. A complete runtime provider should define authentication, endpoint construction, request serialization, response normalization, timeout behavior, and error classification before it is promoted from registry support to runtime support.
+The remaining migration boundary is provider-specific authentication and CLI/application integration. A complete runtime provider should define authentication, endpoint construction, request serialization, response normalization, timeout behavior, and error classification before it is promoted from registry support to runtime support.
 
 The compatibility executor is intentionally policy-controlled: process steps use an allowlist and `shell=False`; shell operators are disabled by default. This is a baseline control, not a substitute for a container, sandbox, or OS-level isolation boundary.
 

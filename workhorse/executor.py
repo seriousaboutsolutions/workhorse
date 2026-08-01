@@ -21,12 +21,13 @@ logger = logging.getLogger(__name__)
 class ExecutionResult:
     """Minimal execution result. No prose."""
 
-    def __init__(self, step_id: str, status: str, output: Optional[str] = None, error: Optional[str] = None, exit_code: int = 0):
+    def __init__(self, step_id: str, status: str, output: Optional[str] = None, error: Optional[str] = None, exit_code: int = 0, error_code: Optional[str] = None):
         self.step_id = step_id
         self.status = status
         self.output = output
         self.error = error
         self.exit_code = exit_code
+        self.error_code = error_code
 
     def to_dict(self) -> Dict:
         return {
@@ -35,6 +36,7 @@ class ExecutionResult:
             "output": self.output,
             "error": self.error,
             "exit_code": self.exit_code,
+            "error_code": self.error_code,
         }
 
 
@@ -69,7 +71,11 @@ class Executor:
         self.client = client
         self.ledger = ledger
         self.budget = budget
-        self.execution = execution or ExecutionConfig()
+        self.execution = execution or ExecutionConfig(workspace_root=None)
+        self.workspace_root = (
+            Path(self.execution.workspace_root).expanduser().resolve()
+            if self.execution.workspace_root else None
+        )
 
     def execute(self, plan: TaskPlan) -> List[ExecutionResult]:
         """Execute a plan in dependency-ready batches."""
@@ -185,20 +191,43 @@ class Executor:
     def _hash(self, text: str) -> str:
         return hashlib.sha256(text.encode()).hexdigest()[:16]
 
+    def _workspace_path(self, raw_path: str) -> tuple[Optional[Path], Optional[str]]:
+        path = Path(raw_path).expanduser()
+        if not path.is_absolute() and self.workspace_root:
+            path = self.workspace_root / path
+        resolved = path.resolve(strict=False)
+        if self.workspace_root and resolved != self.workspace_root and self.workspace_root not in resolved.parents:
+            return None, f"Path is outside workspace root: {resolved}"
+        return resolved, None
+
+    def _cwd(self, raw_cwd: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+        if raw_cwd:
+            path, error = self._workspace_path(raw_cwd)
+            if error:
+                return None, error
+            return str(path), None
+        return str(self.workspace_root) if self.workspace_root else None, None
+
     def execute_file_read(self, args: Dict, task_id: str) -> ExecutionResult:
-        path = Path(args.get("path", "")).expanduser()
+        path, policy_error = self._workspace_path(args.get("path", ""))
+        if policy_error:
+            return ExecutionResult("", "failed", error=policy_error, exit_code=126, error_code="policy.path_outside_workspace")
         if not path.exists():
             return ExecutionResult("", "failed", error=f"File not found: {path}", exit_code=1)
         return ExecutionResult("", "success", output=path.read_text())
 
     def execute_file_write(self, args: Dict, task_id: str) -> ExecutionResult:
-        path = Path(args.get("path", "")).expanduser()
+        path, policy_error = self._workspace_path(args.get("path", ""))
+        if policy_error:
+            return ExecutionResult("", "failed", error=policy_error, exit_code=126, error_code="policy.path_outside_workspace")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(args.get("content", ""))
         return ExecutionResult("", "success", output=f"Wrote {path}")
 
     def execute_file_edit(self, args: Dict, task_id: str) -> ExecutionResult:
-        path = Path(args.get("path", "")).expanduser()
+        path, policy_error = self._workspace_path(args.get("path", ""))
+        if policy_error:
+            return ExecutionResult("", "failed", error=policy_error, exit_code=126, error_code="policy.path_outside_workspace")
         if not path.exists():
             return ExecutionResult("", "failed", error=f"File not found: {path}", exit_code=1)
         content = path.read_text()
@@ -219,24 +248,27 @@ class Executor:
             token in self.SHELL_OPERATORS or any(character in token for character in self.SHELL_OPERATOR_CHARS)
             for token in argv
         ):
-            return None, "Shell operators are disabled; use separate plan steps"
+            return None, "policy.shell_operators: shell operators are disabled; use separate plan steps"
         executable = os.path.basename(argv[0])
         allowed = set(self.execution.shell_allowlist)
         if executable == "exit":
             return argv, None
         if executable not in allowed:
-            return None, f"Command '{executable}' is not in the shell allowlist"
+            return None, f"policy.command_not_allowed: command '{executable}' is not in the shell allowlist"
         return argv, None
 
     def execute_shell(self, args: Dict, task_id: str) -> ExecutionResult:
         """Execute an allowlisted process, or an explicit unsafe shell command."""
         command = str(args.get("command", ""))
         timeout = min(float(args.get("timeout", self.execution.timeout)), self.execution.timeout)
+        cwd, cwd_error = self._cwd(args.get("cwd"))
+        if cwd_error:
+            return ExecutionResult("", "failed", error=cwd_error, exit_code=126, error_code="policy.path_outside_workspace")
         if self.execution.allow_shell_operators:
             try:
                 result = subprocess.run(
                     command, shell=True, capture_output=True, text=True, timeout=timeout,
-                    cwd=args.get("cwd"),
+                    cwd=cwd,
                 )
                 return ExecutionResult(
                     "", "success" if result.returncode == 0 else "failed", output=result.stdout,
@@ -247,14 +279,15 @@ class Executor:
 
         argv, error = self._command_args(command)
         if error:
-            return ExecutionResult("", "failed", error=error, exit_code=126)
+            error_code = "policy.command_not_allowed" if error.startswith("policy.") else "policy.invalid_command"
+            return ExecutionResult("", "failed", error=error, exit_code=126, error_code=error_code)
         if argv[0] == "exit":
             code = int(argv[1]) if len(argv) > 1 and argv[1].isdigit() else 0
             return ExecutionResult("", "failed" if code else "success", exit_code=code)
         try:
             result = subprocess.run(
                 argv, shell=False, capture_output=True, text=True, timeout=timeout,
-                cwd=args.get("cwd"),
+                cwd=cwd,
             )
             return ExecutionResult(
                 "", "success" if result.returncode == 0 else "failed", output=result.stdout,

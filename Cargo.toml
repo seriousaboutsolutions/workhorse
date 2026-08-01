@@ -1,6 +1,6 @@
 [package]
 name = "workhorse"
-version = "1.1.5"
+version = "1.2.4"
 edition = "2021"
 description = "Provider-neutral task execution engine"
 license = "MIT"
@@ -11,4 +11,6 @@ name = "workhorse"
 path = "src/main.rs"
 
 [dependencies]
-
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

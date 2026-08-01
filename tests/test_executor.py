@@ -61,6 +61,29 @@ def test_shell_rejects_operators_and_unapproved_commands():
         assert "operators" in chained.error
         assert unknown.status == "failed"
         assert "allowlist" in unknown.error
+        assert unknown.error_code == "policy.command_not_allowed"
+
+
+def test_workspace_root_blocks_traversal_and_external_cwd(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("sensitive")
+    ledger_config = LedgerConfig(path=f"{tmp_path}/ledger.jsonl", archive_path=f"{tmp_path}/archive/")
+    executor = Executor(
+        client=MagicMock(),
+        ledger=Ledger(ledger_config),
+        budget=TokenBudget(),
+        execution=ExecutionConfig(workspace_root=str(workspace)),
+    )
+
+    read_result = executor.execute_file_read({"path": "../outside.txt"}, "t1")
+    cwd_result = executor.execute_shell({"command": "echo safe", "cwd": str(tmp_path)}, "t1")
+
+    assert read_result.status == "failed"
+    assert read_result.error_code == "policy.path_outside_workspace"
+    assert cwd_result.status == "failed"
+    assert cwd_result.error_code == "policy.path_outside_workspace"
 
 
 def test_retry_success_allows_dependents_to_run():

@@ -21,7 +21,7 @@ VHS is optional for code-only changes. The generated `docs/demo.gif` should be r
 
 ## Change guidelines
 
-- Keep the Rust binary dependency-free unless a dependency removes meaningful risk or complexity.
+- Keep the Rust binary dependency-light; network and serialization dependencies must have a clear security or correctness benefit and be reviewed in the lockfile.
 - Add tests for new provider metadata and command behavior.
 - Keep output stable under `NO_COLOR=1`.
 - Document current behavior and label migration work as planned.

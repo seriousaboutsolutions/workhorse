@@ -27,6 +27,7 @@ class ExecutionConfig(BaseModel):
         "whoami",
     ])
     allow_shell_operators: bool = False
+    workspace_root: Optional[str] = "."
 
 
 class LedgerConfig(BaseModel):

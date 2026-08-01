@@ -25,7 +25,7 @@ Do not expose API keys in command output. CI should inject secrets into the job 
 
 ## Execution policy
 
-The Python compatibility executor runs allowlisted processes with `shell=False`. Shell operators such as pipes, redirects, and command chaining are rejected by default. Extend `execution.shell_allowlist` only with reviewed executables; enable `allow_shell_operators` only in a separately isolated environment with an explicit security review.
+The Python compatibility executor runs allowlisted processes with `shell=False`. Shell operators such as pipes, redirects, and command chaining are rejected by default. File tools and process working directories are constrained to `execution.workspace_root`. Extend `execution.shell_allowlist` only with reviewed executables; enable `allow_shell_operators` only in a separately isolated environment with an explicit security review.
 
 ## Logging and data
 

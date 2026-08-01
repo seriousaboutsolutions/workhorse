@@ -83,6 +83,7 @@ execution:
   fail_fast: true
   shell_allowlist: ["cat", "date", "echo", "find", "git", "grep", "ls", "pwd", "pytest", "whoami"]
   allow_shell_operators: false
+  workspace_root: "."
 
 ledger:
   path: "~/.workhorse/ledger.jsonl"
@@ -90,4 +91,4 @@ ledger:
   compaction_threshold: 0.90
 ```
 
-The environment variable `GROQ_API_KEY` takes effect when `groq.api_key` is omitted. Keep credentials out of this file unless the file is protected by your secret-management policy. Shell execution is restricted to the configured allowlist and does not invoke a shell by default.
+The environment variable `GROQ_API_KEY` takes effect when `groq.api_key` is omitted. Keep credentials out of this file unless the file is protected by your secret-management policy. Shell execution is restricted to the configured allowlist and does not invoke a shell by default. File tools and process working directories are constrained to `workspace_root` when it is set.

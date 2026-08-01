@@ -8,7 +8,7 @@ The roadmap is deliberately gate-based. A phase is complete only when its exit c
 
 The current repository contains two paths:
 
-- Rust: dependency-free provider registry, `providers`, and local `doctor` diagnostics.
+- Rust: typed provider registry, local `providers`/`doctor` diagnostics, and the first OpenAI-compatible transport contract.
 - Python: compatibility planner, Groq client, task executor, JSONL ledger, and deliverer.
 
 The Rust path does not yet make model requests. The Python path remains useful, but its process policy is a baseline allowlist rather than a full OS sandbox. These constraints are inputs to the plan, not hidden assumptions.
@@ -135,7 +135,9 @@ Exit criteria:
 
 ### Phase 2: provider transport runtime
 
-**Objective:** make the registry executable through a single normalized transport boundary.
+**Objective:** make the registry executable through a single normalized transport boundary and expose it through the application service.
+
+**Progress:** the typed contract and an OpenAI-compatible blocking adapter now exist in `src/transport.rs`. The CLI intentionally remains discovery-only until request policy, model selection, structured output, and application-level retries are wired.
 
 Recommended implementation order:
 
