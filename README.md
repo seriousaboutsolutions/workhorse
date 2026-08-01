@@ -1,4 +1,8 @@
-# workhorse
+<p align="center">
+  <img src="assets/workhorse-logo.svg" alt="Workhorse" width="420">
+</p>
+
+<p align="center">Provider-neutral task execution for dependable automation.</p>
 
 Workhorse is a provider-neutral task execution CLI. The Rust CLI keeps provider discovery and local diagnostics fast and predictable; the original Python package remains available while the execution engine is being migrated.
 

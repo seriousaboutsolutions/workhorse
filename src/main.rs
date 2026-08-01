@@ -43,8 +43,8 @@ fn paint(value: impl AsRef<str>, code: &str, enabled: bool) -> String {
 
 fn usage() {
     let color = color_enabled();
-    println!("{}", paint("workhorse", "1;36", color));
-    println!("provider-neutral task execution");
+    println!("{}", paint("WORKHORSE", "1;36", color));
+    println!("{}", paint("provider-neutral task execution", "90", color));
     println!("\n{}", paint("USAGE", "1;37", color));
     println!("    {}  list supported providers", paint("workhorse providers", "36", color));
     println!("    {}     inspect configured credentials", paint("workhorse doctor", "36", color));
