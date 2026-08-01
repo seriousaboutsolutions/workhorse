@@ -1,0 +1,14 @@
+[package]
+name = "workhorse"
+version = "0.2.16"
+edition = "2021"
+description = "Provider-neutral task execution engine"
+license = "MIT"
+readme = "README.md"
+
+[[bin]]
+name = "workhorse"
+path = "src/main.rs"
+
+[dependencies]
+

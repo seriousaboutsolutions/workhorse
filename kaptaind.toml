@@ -2,13 +2,13 @@
 [project]
 name = "workhorse"
 path = "/home/sal/workhorse"
-language = "python"
+language = "rust"
 
 [project.owners]
 primary = "info@seriousaboutsolutions.co.uk"
 
 [project.release]
-version_file = "pyproject.toml"
+version_file = "Cargo.toml"
 semver_format = "{major}.{minor}.{patch}"
 auto_tag = true
 auto_release = false
@@ -18,19 +18,22 @@ remote = "github-seriousaboutsolutions:seriousaboutsolutions/workhorse.git"
 branch = "main"
 
 [project.analysis]
-watch = ["workhorse/", "tests/", "docs/"]
-ignore = ["*.egg-info", "__pycache__", ".pytest_cache", "*.pyc"]
+watch = ["src/", "Cargo.toml", "workhorse/", "tests/", "docs/"]
+ignore = ["target", "*.egg-info", "__pycache__", ".pytest_cache", "*.pyc"]
 
 [project.analysis.tools]
 pytest = true
 mypy = false
 
 [project.hooks]
-pre_commit = ["python3 -m pytest tests/ -v"]
+pre_commit = ["cargo test", "python3 -m pytest tests/ -v"]
+
+[trust]
+execution = "trusted"
 
 [project.ai]
-model = "groq"
-groq_api_key = "GROQ_API_KEY"
+model = "provider-neutral"
+api_key_variables = ["ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "XAI_API_KEY"]
 
 [project.budget]
 max_tokens_per_commit = 2000

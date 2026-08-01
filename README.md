@@ -1,40 +1,60 @@
 # workhorse
 
-A Groq-powered task execution engine that prioritizes task-based execution over conversational overhead, minimizes redundant context re-summarization, and delivers higher-quality outputs.
+Workhorse is a provider-neutral task execution CLI. The Rust CLI keeps provider discovery and local diagnostics fast and predictable; the original Python package remains available while the execution engine is being migrated.
 
-## Core Philosophy
+![Workhorse provider discovery](docs/demo.gif)
 
-- **Zero Chatter**: No acknowledgements, no status updates, no apologies
-- **Task-Based Execution**: Structured planning → silent batch execution → minimal delivery
-- **Append-Only Context**: Never re-summarize; split tasks instead
-- **Token Budget Enforcement**: Every token is accounted for; tasks split when budgets exceed
+## Install and run
 
-## Quick Start
+Rust 1.70 or newer is required for the CLI:
+
+```bash
+cargo install --path .
+workhorse providers
+workhorse doctor
+```
+
+`providers` prints every supported backend and its credential variable. `doctor` reports which backends are configured without making a network request.
+
+## Supported providers
+
+| Provider | Environment variable | API style |
+| --- | --- | --- |
+| Anthropic | `ANTHROPIC_API_KEY` | Anthropic Messages |
+| Google Gemini | `GEMINI_API_KEY` | Gemini |
+| Groq | `GROQ_API_KEY` | OpenAI-compatible |
+| Mistral | `MISTRAL_API_KEY` | OpenAI-compatible |
+| Ollama | `OLLAMA_HOST` | OpenAI-compatible, local |
+| OpenAI | `OPENAI_API_KEY` | OpenAI-compatible |
+| OpenRouter | `OPENROUTER_API_KEY` | OpenAI-compatible |
+| xAI | `XAI_API_KEY` | OpenAI-compatible |
+
+Set one credential before running `doctor`, for example:
+
+```bash
+export OPENAI_API_KEY=...
+workhorse doctor
+```
+
+No credential is stored by Workhorse. Provider endpoints and protocol metadata live in the local registry in `src/main.rs`.
+
+## Development
+
+```bash
+cargo test
+python3 -m pytest tests/ -v
+vhs docs/demo.tape
+```
+
+The VHS tape regenerates the animated terminal demo at `docs/demo.gif`. Install [VHS](https://github.com/charmbracelet/vhs) if you want to regenerate it locally.
+
+## Python compatibility
+
+The existing Python task planner and executor can still be installed for compatibility:
 
 ```bash
 pip install -e .
-workhorse plan "your task here"
-workhorse exec <plan_id>
-workhorse run "your task here"  # plan + exec + deliver in one shot
+workhorse run "your task here"
 ```
 
-## Configuration
-
-Create `~/.workhorse/config.yaml`:
-
-```yaml
-groq:
-  api_key: "your-groq-api-key"
-  model: "llama-3.3-70b-versatile"
-  base_url: "https://api.groq.com/openai/v1"
-  max_tokens: 128000
-
-execution:
-  max_parallel: 8
-  timeout: 300
-  retry_count: 1
-
-ledger:
-  path: "~/.workhorse/ledger.jsonl"
-  compaction_threshold: 0.9
-```
+The Python path currently uses Groq; new provider integrations should target the Rust provider registry and protocol boundary.

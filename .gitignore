@@ -25,3 +25,10 @@ ENV/
 *.log
 *.db
 .workhorse/
+.venv/
+target/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.kaptaind/
+VERSION
